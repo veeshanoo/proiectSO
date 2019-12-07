@@ -20,15 +20,10 @@
         *pipes 
         *help command
         *exit (ctrl + c de genu)
+        *free memory
 */
 
 void clearDisplay() {
-    clear();
-}
-
-void greetUser() {
-    printf("\n\n\n\n\nhello user\n\n\n\n\n\n");
-    // sleep(1);
     clear();
 }
 
@@ -40,6 +35,43 @@ char* getUsernameDisplay() {
     return usrDisplay;
 }
 
+void printCurrentDirectory() {
+    char cwd[1000];
+    getcwd(cwd, sizeof(cwd));
+    char* username = getUsernameDisplay();
+    printf("%s%s\n", username, cwd);
+    free(username);
+}
+
+void greetUser() {
+    printf("\n\n\n\n\n");
+    printf("               ^           \n");
+    printf("               ^           \n");
+    printf("              ^^^           \n");
+    printf("              ^^^           \n");
+    printf("             ^^^^^           \n");
+    printf("             ^^^^^           \n");
+    printf("           ^^^^^^^^^           \n");
+    printf("          ^^^^^^^^^^^           \n");
+    printf("          ^^^^^^^^^^^           \n");
+    printf("        ^^^^^^^^^^^^^^^           \n");
+    printf("       ^^^^^^^^^^^^^^^^^           \n");
+    printf("       ^^^^^^^^^^^^^^^^^            \n");
+    printf("     ^^^^^^^^^^^^^^^^^^^^^           \n");
+    printf("    ^^^^^^^^^^^^^^^^^^^^^^^          \n");
+    printf("    ^^^^^^^^^^^^^^^^^^^^^^^            \n");
+    printf("  ^^^^^^^^^^^^^^^^^^^^^^^^^^^           \n");
+    printf(" ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^           \n");
+    printf("              | |\n");
+    printf("              | |\n");
+    printf("              | |\n");
+    printf("              | |\n");
+    printf("              | |\n");
+    printf(" \n\n\n\n      WELCOME TO OUT SHELL!!    \n\n\n");
+    sleep(2);
+    clear();
+}
+
 char* takeInput() {
     char *buff = malloc(PARSER_SIZE * sizeof(char)), *username;
 
@@ -48,6 +80,7 @@ char* takeInput() {
     if (buff != NULL) {
         add_history(buff);
     } 
+    
     return buff;
 }
 
@@ -73,7 +106,6 @@ char** parseInputBySeparator(char *input, char* separator) {
     char *currentWord;
 
     while ((currentWord = strsep(&input, separator)) != NULL) {
-        // printf("--- %d --- %s\n", strlen(currentWord), currentWord);
         inputArguments[inputArgumentsSize] = malloc(strlen(currentWord) * sizeof(char));
         strcpy(inputArguments[inputArgumentsSize], currentWord);
         inputArgumentsSize++;
@@ -91,18 +123,17 @@ int executeCommand(char **input) {
     if (pid < 0) {
         return -1;
     } else if (pid == 0) {
-        if (execvp(input[0], input) != 0) {
-            return errno;
-        }
-        exit(0);
+        execvp(input[0], input);
+        return errno;
     } else {
-       wait(NULL);
-       return 0;
+        int returnStatus;
+        wait(&returnStatus);
+
+        return returnStatus;
     }
 }
 
 int executeCommandAndGetOutput(char** input, int inputType) {
-
     pid_t pid;
     int pipefd[2]; 
     if (pipe(pipefd) < 0) { 
@@ -110,50 +141,76 @@ int executeCommandAndGetOutput(char** input, int inputType) {
     } 
 
     pid = fork();
-
     if (pid < 0) {
         return -1;
     } else if (pid == 0) {
-
-        // if (inputType == 0) {
-
-        // } else {
-
-        // }
-        // char buff[101];
-        // read(pipefd[0], buff, 100);
-        // write(pipefd[1], buff, 100);
-        // dup2(pipefd[0], STDIN_FILENO); 
-        if (execvp(input[0], input) != 0) {
-            return errno;
-        }
-
-        exit(0);
+        execvp(input[0], input);
+        printf("Could not find command \"%s\"\n", input[0]);
+        return errno;
     } else {
-       wait(NULL);
-       return 0;
+        int returnStatus;
+        wait(&returnStatus);
+
+        return returnStatus;
     }
 
     return 0;
 }
 
+void executePipeline(char **input) {
+    int fd[2];
+    pid_t pid;
+    int fdd = 0;
+
+    char* trimmedInput;
+    char** command;
+    int commandId = 0;
+    for (; input[commandId] != NULL; commandId++) {
+        if (strlen(input[commandId]) == 0)
+            continue;
+
+        trimmedInput = trimInput(input[commandId]);
+        command = parseInputBySeparator(trimmedInput, " ");
+
+        pipe(fd);
+        pid = fork();
+        
+        if (pid < 0) {
+            perror("fork error: ");
+            exit(1);
+        } else if (pid == 0) {
+            dup2(fdd, 0);
+            if (input[commandId + 1] != NULL)
+                dup2(fd[1], 1);
+
+            close(fd[0]);
+            execvp(command[0], command);
+            exit(1);
+        } else {
+            int status;
+            wait(&status);
+            close(fd[1]);
+            fdd = fd[0];
+        }
+    }
+}
+
 int executePipedCommands(char **input) {
-    // printf("%d %s-----\n", strlen(input[0]), input[0]);
     int commandId = 0;
     char* trimmedInput;
-    char** pipedInput;
+    char** command;
     int inputType = 0;
     for (; input[commandId] != NULL; commandId++) {
         if (strlen(input[commandId]) == 0) 
             continue;
 
         trimmedInput = trimInput(input[commandId]);
-        pipedInput = parseInputBySeparator(trimmedInput, " "); 
-        // printf("%d %s-----\n", strlen(pipedInput[0]), pipedInput[0]);
-        if (executeCommandAndGetOutput(pipedInput, inputType) != 0) {
+        command = parseInputBySeparator(trimmedInput, " "); 
+        if (executeCommandAndGetOutput(command, inputType) != 0) {
             return -1;
         }
         inputType = 1;
+        // pipeline(command);
     }
 }
 
@@ -168,13 +225,11 @@ int executeChainedCommand(char **parsedInput) {
         trimmedInput = trimInput(parsedInput[commandId]);
         pipedInput = parseInputBySeparator(trimmedInput, "|"); 
 
-        if (executePipedCommands(pipedInput) != 0) {
-            return -1;
-        }
-
-        // if (executeCommand(parseInputBySeparator(trimmedInput, " ")) != 0) {
+        // if (executePipedCommands(pipedInput) != 0) {
         //     return -1;
         // }
+
+        executePipeline(pipedInput);
     }
 
     return 0;
@@ -194,13 +249,10 @@ int main() {
         parsedInput = parseInputBySeparator(trimmedInput, "&&");
 
         if (executeChainedCommand(parsedInput) != 0) {
-            printf("Command not found\n");
+            // printf("Command not found\n");
             continue;
         }
-
-        
     }
-
 
     return 0;
 }
