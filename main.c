@@ -11,7 +11,16 @@
 #define USER_SIZE 1000
 #define PARSER_SIZE 1000
 #define ARGUMENTS_SIZE 100
+#define PIPES_SIZE 100 
 #define clear() printf("\033[H\033[J") 
+
+/*
+    To do:
+        *cd 
+        *pipes 
+        *help command
+        *exit (ctrl + c de genu)
+*/
 
 void clearDisplay() {
     clear();
@@ -92,17 +101,80 @@ int executeCommand(char **input) {
     }
 }
 
+int executeCommandAndGetOutput(char** input, int inputType) {
+
+    pid_t pid;
+    int pipefd[2]; 
+    if (pipe(pipefd) < 0) { 
+        return -1; 
+    } 
+
+    pid = fork();
+
+    if (pid < 0) {
+        return -1;
+    } else if (pid == 0) {
+
+        // if (inputType == 0) {
+
+        // } else {
+
+        // }
+        // char buff[101];
+        // read(pipefd[0], buff, 100);
+        // write(pipefd[1], buff, 100);
+        // dup2(pipefd[0], STDIN_FILENO); 
+        if (execvp(input[0], input) != 0) {
+            return errno;
+        }
+
+        exit(0);
+    } else {
+       wait(NULL);
+       return 0;
+    }
+
+    return 0;
+}
+
+int executePipedCommands(char **input) {
+    // printf("%d %s-----\n", strlen(input[0]), input[0]);
+    int commandId = 0;
+    char* trimmedInput;
+    char** pipedInput;
+    int inputType = 0;
+    for (; input[commandId] != NULL; commandId++) {
+        if (strlen(input[commandId]) == 0) 
+            continue;
+
+        trimmedInput = trimInput(input[commandId]);
+        pipedInput = parseInputBySeparator(trimmedInput, " "); 
+        // printf("%d %s-----\n", strlen(pipedInput[0]), pipedInput[0]);
+        if (executeCommandAndGetOutput(pipedInput, inputType) != 0) {
+            return -1;
+        }
+        inputType = 1;
+    }
+}
+
 int executeChainedCommand(char **parsedInput) {
     int commandId = 0;
     char* trimmedInput;
+    char** pipedInput;
     for (; parsedInput[commandId] != NULL; commandId++) {
         if (strlen(parsedInput[commandId]) == 0) 
             continue;
         
         trimmedInput = trimInput(parsedInput[commandId]);
-        if (executeCommand(parseInputBySeparator(trimmedInput, " ")) != 0) {
+        pipedInput = parseInputBySeparator(trimmedInput, "|"); 
+
+        if (executePipedCommands(pipedInput) != 0) {
             return -1;
         }
+
+        // if (executeCommand(parseInputBySeparator(trimmedInput, " ")) != 0) {
+        //     return -1;
+        // }
     }
 
     return 0;
