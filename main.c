@@ -16,11 +16,11 @@
 
 /*
     To do:
-        *cd 
-        *pipes 
+        *cd -- important 
+        *pipes -- done 
         *help command
         *exit (ctrl + c de genu)
-        *free memory
+        *free memory -- important
 */
 
 void clearDisplay() {
@@ -28,6 +28,8 @@ void clearDisplay() {
 }
 
 char* getUsernameDisplay() {
+    // clearDisplay();
+    // printf(“\033[0;31m”);
     char *usrDisplay = malloc(USER_SIZE);
     strcpy(usrDisplay, "Best Moldavian GuyzZz@");
     strcat(usrDisplay, getenv("USER"));
@@ -44,6 +46,7 @@ void printCurrentDirectory() {
 }
 
 void greetUser() {
+    printf("\033[0;32m");
     printf("\n\n\n\n\n");
     printf("               ^           \n");
     printf("               ^           \n");
@@ -62,12 +65,15 @@ void greetUser() {
     printf("    ^^^^^^^^^^^^^^^^^^^^^^^            \n");
     printf("  ^^^^^^^^^^^^^^^^^^^^^^^^^^^           \n");
     printf(" ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^           \n");
+    printf("\033[0;35m");
     printf("              | |\n");
     printf("              | |\n");
     printf("              | |\n");
     printf("              | |\n");
     printf("              | |\n");
-    printf(" \n\n\n\n      WELCOME TO OUT SHELL!!    \n\n\n");
+    printf("\033[01;33m");
+    printf(" \n\n\n\n      WELCOME TO OUR SHELL!!    \n\n\n");
+    printf("\033[0m"); 
     sleep(2);
     clear();
 }
@@ -181,11 +187,11 @@ void executePipeline(char **input) {
         } else if (pid == 0) {
             dup2(fdd, 0);
             if (input[commandId + 1] != NULL)
-                dup2(fd[1], 1);
+                dup2(fd[1], STDOUT_FILENO);
 
             close(fd[0]);
             execvp(command[0], command);
-            exit(1);
+            // return errno;
         } else {
             int status;
             wait(&status);
