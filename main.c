@@ -163,6 +163,17 @@ int executeCommandAndGetOutput(char** input, int inputType) {
     return 0;
 }
 
+void openHelp() {
+
+	 puts("\n***WELCOME TO MY SHELL HELP***"
+        "\nCopyright © mihaiciv, flibia and francurichard"
+        "\n-You can use supported linux shell commands and the above ones:"
+        "\n - CTRL-O for interupting the current program"
+        "\n - help"
+        "\n - closecomputer for closing your PC");
+
+}
+
 int changeDirectory(char *pth) {
     char path[1000];
     
@@ -209,7 +220,9 @@ void executePipeline(char **input) {
             perror("fork error: ");
             exit(1);
         } else if (pid == 0) {
-            if (strcmp(command[0], "cd") == 0) {
+        	if (strcmp(command[0], "help") == 0 && command[1] == NULL) {
+        		openHelp();
+        	} else if (strcmp(command[0], "cd") == 0) {
                 changeDirectory(command[1]);
             } else {
                 dup2(fdd, 0);
