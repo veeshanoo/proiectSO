@@ -16,7 +16,7 @@
 
 /*
     To do:
-        *cd -- important 
+        *cd -- done
         *pipes -- done 
         *help command
         *exit (ctrl + c de genu)
@@ -41,7 +41,7 @@ void printCurrentDirectory() {
     char cwd[1000];
     getcwd(cwd, sizeof(cwd));
     char* username = getUsernameDisplay();
-    printf("%s%s\n", username, cwd);
+    printf("%s\n", cwd);
     free(username);
 }
 
@@ -163,6 +163,23 @@ int executeCommandAndGetOutput(char** input, int inputType) {
     return 0;
 }
 
+int changeDirectory(char *pth) {
+    char path[1000];
+    char cwd[1000];
+    strcpy(path, pth);
+    if (getcwd(cwd, sizeof(cwd)) == NULL) {
+        perror(NULL);
+        return errno;
+    }
+    strcat(cwd, "/");
+    strcat(cwd, path);
+    if(chdir(cwd)) {
+        perror(NULL);
+        return errno;
+    }
+    return 0;
+}
+
 void executePipeline(char **input) {
     int fd[2];
     pid_t pid;
@@ -177,7 +194,6 @@ void executePipeline(char **input) {
 
         trimmedInput = trimInput(input[commandId]);
         command = parseInputBySeparator(trimmedInput, " ");
-
         pipe(fd);
         pid = fork();
         
@@ -185,13 +201,17 @@ void executePipeline(char **input) {
             perror("fork error: ");
             exit(1);
         } else if (pid == 0) {
-            dup2(fdd, 0);
-            if (input[commandId + 1] != NULL)
-                dup2(fd[1], STDOUT_FILENO);
+            if (strcmp(command[0], "cd") == 0) {
+                changeDirectory(command[1]);
+            } else {
+                dup2(fdd, 0);
+                if (input[commandId + 1] != NULL)
+                    dup2(fd[1], STDOUT_FILENO);
 
-            close(fd[0]);
-            execvp(command[0], command);
-            // return errno;
+                close(fd[0]);
+                execvp(command[0], command);
+                // return errno;
+            }
         } else {
             int status;
             wait(&status);
@@ -236,11 +256,11 @@ int executeChainedCommand(char **parsedInput) {
         // }
 
         executePipeline(pipedInput);
+        // printf("%s \n", pipedInpput);
     }
 
     return 0;
 }
-
 
 int main() {
     greetUser();
@@ -255,7 +275,7 @@ int main() {
         parsedInput = parseInputBySeparator(trimmedInput, "&&");
 
         if (executeChainedCommand(parsedInput) != 0) {
-            // printf("Command not found\n");
+            printf("Command not found\n");
             continue;
         }
     }
