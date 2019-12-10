@@ -165,17 +165,25 @@ int executeCommandAndGetOutput(char** input, int inputType) {
 
 int changeDirectory(char *pth) {
     char path[1000];
-    char cwd[1000];
+    
     strcpy(path, pth);
-    if (getcwd(cwd, sizeof(cwd)) == NULL) {
-        perror(NULL);
-        return errno;
-    }
-    strcat(cwd, "/");
-    strcat(cwd, path);
-    if(chdir(cwd)) {
-        perror(NULL);
-        return errno;
+    if (path[0] != '/') {
+        char cwd[1000];
+        if (getcwd(cwd, sizeof(cwd)) == NULL) {
+            perror(NULL);
+            return errno;
+        }
+        strcat(cwd, "/");
+        strcat(cwd, path);
+        if(chdir(cwd)) {
+            perror(NULL);
+            return errno;
+        }
+    } else {
+        if(chdir(path)) {
+            perror(NULL);
+            return errno;
+        }
     }
     return 0;
 }
