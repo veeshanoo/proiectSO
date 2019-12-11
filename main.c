@@ -28,8 +28,6 @@ void clearDisplay() {
 }
 
 char* getUsernameDisplay() {
-    // clearDisplay();
-    // printf(“\033[0;31m”);
     char *usrDisplay = malloc(USER_SIZE);
     strcpy(usrDisplay, "Best Moldavian GuyzZz@");
     strcat(usrDisplay, getenv("USER"));
@@ -122,56 +120,13 @@ char** parseInputBySeparator(char *input, char* separator) {
     return inputArguments;
 } 
 
-int executeCommand(char **input) {
-    pid_t pid;
-    pid = fork();
-
-    if (pid < 0) {
-        return -1;
-    } else if (pid == 0) {
-        execvp(input[0], input);
-        return errno;
-    } else {
-        int returnStatus;
-        wait(&returnStatus);
-
-        return returnStatus;
-    }
-}
-
-int executeCommandAndGetOutput(char** input, int inputType) {
-    pid_t pid;
-    int pipefd[2]; 
-    if (pipe(pipefd) < 0) { 
-        return -1; 
-    } 
-
-    pid = fork();
-    if (pid < 0) {
-        return -1;
-    } else if (pid == 0) {
-        execvp(input[0], input);
-        printf("Could not find command \"%s\"\n", input[0]);
-        return errno;
-    } else {
-        int returnStatus;
-        wait(&returnStatus);
-
-        return returnStatus;
-    }
-
-    return 0;
-}
-
 void openHelp() {
-
-	 puts("\n***WELCOME TO MY SHELL HELP***"
+	puts("\n***WELCOME TO MY SHELL HELP***"
         "\nCopyright © mihaiciv, flibia and francurichard"
         "\n-You can use supported linux shell commands and the above ones:"
         "\n - CTRL-O for interupting the current program"
         "\n - help"
         "\n - closecomputer for closing your PC");
-
 }
 
 int changeDirectory(char *pth) {
@@ -213,6 +168,7 @@ void executePipeline(char **input) {
 
         trimmedInput = trimInput(input[commandId]);
         command = parseInputBySeparator(trimmedInput, " ");
+        free(trimmedInput);
         pipe(fd);
         pid = fork();
         
@@ -231,7 +187,7 @@ void executePipeline(char **input) {
 
                 close(fd[0]);
                 execvp(command[0], command);
-                // return errno;
+                printf("Could not find command \"%s\"\n", input[0]);
             }
         } else {
             int status;
@@ -242,26 +198,7 @@ void executePipeline(char **input) {
     }
 }
 
-int executePipedCommands(char **input) {
-    int commandId = 0;
-    char* trimmedInput;
-    char** command;
-    int inputType = 0;
-    for (; input[commandId] != NULL; commandId++) {
-        if (strlen(input[commandId]) == 0) 
-            continue;
-
-        trimmedInput = trimInput(input[commandId]);
-        command = parseInputBySeparator(trimmedInput, " "); 
-        if (executeCommandAndGetOutput(command, inputType) != 0) {
-            return -1;
-        }
-        inputType = 1;
-        // pipeline(command);
-    }
-}
-
-int executeChainedCommand(char **parsedInput) {
+void executeChainedCommand(char **parsedInput) {
     int commandId = 0;
     char* trimmedInput;
     char** pipedInput;
@@ -272,15 +209,15 @@ int executeChainedCommand(char **parsedInput) {
         trimmedInput = trimInput(parsedInput[commandId]);
         pipedInput = parseInputBySeparator(trimmedInput, "|"); 
 
-        // if (executePipedCommands(pipedInput) != 0) {
-        //     return -1;
-        // }
-
         executePipeline(pipedInput);
-        // printf("%s \n", pipedInpput);
-    }
 
-    return 0;
+        free(trimmedInput);
+        int size = sizeof(pipedInput) / sizeof(char*);
+        for (int i = 0; i < size; i++)
+            free(pipedInput[i]);
+                
+        free(pipedInput);
+    }
 }
 
 int main() {
@@ -295,10 +232,16 @@ int main() {
         trimmedInput = trimInput(currentInput);
         parsedInput = parseInputBySeparator(trimmedInput, "&&");
 
-        if (executeChainedCommand(parsedInput) != 0) {
-            printf("Command not found\n");
-            continue;
-        }
+        executeChainedCommand(parsedInput);
+        
+        // clearing stuff 
+        free(currentInput);
+        free(trimmedInput);
+        int size = sizeof(parsedInput) / sizeof(char*);
+        for (int i = 0; i < size; i++)
+            free(parsedInput[i]);
+
+        free(parsedInput);
     }
 
     return 0;
