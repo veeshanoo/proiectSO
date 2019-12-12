@@ -185,8 +185,8 @@ void executePipeline(char **input) {
                 exit(1);
 
             } else {
-                int status;
                 signal(SIGINT, SIG_IGN);
+                int status;
                 wait(&status);
 
                 int size = sizeof(command) / sizeof(char*);
