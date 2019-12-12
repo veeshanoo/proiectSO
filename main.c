@@ -25,18 +25,6 @@
         *free memory -- important
 */
 
-static jmp_buf env;
-static  volatile sig_atomic_t jump_active = 0;
-
-void sigint_handler(int signo) {
-    if (!jump_active) {
-        return;
-    }
-    siglongjmp(env, 42);
-}
-
-
-
 void clearDisplay() {
     clear();
 }
@@ -184,33 +172,37 @@ void executePipeline(char **input) {
         command = parseInputBySeparator(trimmedInput, " ");
         free(trimmedInput);
         pipe(fd);
-        pid = fork();
-        if (pid < 0) {
-            perror("fork error: ");
-            exit(1);
-        } else if (pid == 0) {
-            signal(SIGINT, SIG_DFL);
-        	if (strcmp(command[0], "help") == 0 && command[1] == NULL) {
-        		openHelp();
-        	} else if (strcmp(command[0], "cd") == 0) {
-                changeDirectory(command[1]);
-            } else {
+        
+        if (strcmp(command[0], "help") == 0 && command[1] == NULL) {
+            openHelp();
+        } else if (strcmp(command[0], "cd") == 0) {
+            changeDirectory(command[1]);
+        } else {
+            pid = fork();
+            if (pid < 0) {
+                perror("fork error: ");
+                exit(1);
+            } else if (pid == 0) {
+                signal(SIGINT, SIG_DFL);
+            	
                 dup2(fdd, 0);
                 if (input[commandId + 1] != NULL)
                     dup2(fd[1], STDOUT_FILENO);
 
                 close(fd[0]);
                 execvp(command[0], command);
-                printf("Could not find command \"%s\"\n", input[0]);
+                printf("Could not find command \"%s\"\n", input[0]);  
+            } else {
+                int status;
+                signal(SIGINT, SIG_IGN);
+                wait(&status);
+                signal(SIGINT, SIG_DFL);
+                close(fd[1]);
+                fdd = fd[0];
             }
-        } else {
-            int status;
-            signal(SIGINT, SIG_IGN);
-            wait(&status);
-            signal(SIGINT, SIG_DFL);
-            close(fd[1]);
-            fdd = fd[0];
         }
+
+
     }
 }
 
