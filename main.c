@@ -1,12 +1,14 @@
-#include<stdio.h> 
-#include<string.h> 
-#include<stdlib.h> 
-#include<unistd.h> 
-#include<sys/types.h> 
-#include<sys/wait.h> 
-#include<readline/readline.h> 
-#include<readline/history.h> 
+#include <stdio.h> 
+#include <string.h> 
+#include <stdlib.h> 
+#include <unistd.h> 
+#include <sys/types.h> 
+#include <sys/wait.h> 
+#include <readline/readline.h> 
+#include <readline/history.h> 
 #include <errno.h>
+#include <setjmp.h>
+#include <signal.h>
 
 #define USER_SIZE 1000
 #define PARSER_SIZE 1000
@@ -22,6 +24,18 @@
         *exit (ctrl + c de genu)
         *free memory -- important
 */
+
+static jmp_buf env;
+static  volatile sig_atomic_t jump_active = 0;
+
+void sigint_handler(int signo) {
+    if (!jump_active) {
+        return;
+    }
+    siglongjmp(env, 42);
+}
+
+
 
 void clearDisplay() {
     clear();
@@ -171,11 +185,11 @@ void executePipeline(char **input) {
         free(trimmedInput);
         pipe(fd);
         pid = fork();
-        
         if (pid < 0) {
             perror("fork error: ");
             exit(1);
         } else if (pid == 0) {
+            signal(SIGINT, SIG_DFL);
         	if (strcmp(command[0], "help") == 0 && command[1] == NULL) {
         		openHelp();
         	} else if (strcmp(command[0], "cd") == 0) {
@@ -191,7 +205,9 @@ void executePipeline(char **input) {
             }
         } else {
             int status;
+            signal(SIGINT, SIG_IGN);
             wait(&status);
+            signal(SIGINT, SIG_DFL);
             close(fd[1]);
             fdd = fd[0];
         }
