@@ -7,7 +7,6 @@
 #include <readline/readline.h> 
 #include <readline/history.h> 
 #include <errno.h>
-#include <setjmp.h>
 #include <signal.h>
 
 #define USER_SIZE 1000
@@ -15,15 +14,6 @@
 #define ARGUMENTS_SIZE 100
 #define PIPES_SIZE 100 
 #define clear() printf("\033[H\033[J") 
-
-/*
-    To do:
-        *cd -- done
-        *pipes -- done 
-        *help command
-        *exit (ctrl + c de genu)
-        *free memory -- important
-*/
 
 void clearDisplay() {
     clear();
@@ -123,12 +113,12 @@ char** parseInputBySeparator(char *input, char* separator) {
 } 
 
 void openHelp() {
-	puts("\n***WELCOME TO MY SHELL HELP***"
+	printf("\n***WELCOME TO MY SHELL HELP***"
         "\nCopyright © mihaiciv, flibia and francurichard"
         "\n-You can use supported linux shell commands and the above ones:"
         "\n - CTRL-O for interupting the current program"
         "\n - help"
-        "\n - closecomputer for closing your PC");
+        "\n - closecomputer for closing your PC asd.c");
 }
 
 int changeDirectory(char *pth) {
@@ -192,17 +182,23 @@ void executePipeline(char **input) {
                 close(fd[0]);
                 execvp(command[0], command);
                 printf("Could not find command \"%s\"\n", input[0]);  
+                exit(1);
+
             } else {
                 int status;
                 signal(SIGINT, SIG_IGN);
                 wait(&status);
+
+                int size = sizeof(command) / sizeof(char*);
+                for (int i = 0; i < size; i++)
+                    free(command[i]);
+                free(command);
+
                 signal(SIGINT, SIG_DFL);
                 close(fd[1]);
                 fdd = fd[0];
             }
         }
-
-
     }
 }
 
